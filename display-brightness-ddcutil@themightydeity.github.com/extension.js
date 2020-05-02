@@ -182,8 +182,11 @@ function getDisplays() {
                 /* we need current brightness in the scale of 0 to 1 for slider*/
                 let currentBrightness = vcpInfosArray[3] / vcpInfosArray[4];
 
+                let volumeInfos = spawnCommandAndRead("ddcutil getvcp --nodetect --brief 62 --bus " + display_bus);
+                let currentVolume = volumeInfos.trim().split(" ")[3] / 100;
+
                 /* make display object */
-                display = { "bus": display_bus, "max": maxBrightness, "current": currentBrightness };
+                display = { "bus": display_bus, "max": maxBrightness, "current": currentBrightness, "current_volume": currentVolume };
             }
             if (ddc_line.indexOf("Monitor:") !== -1 && ddc_supported) {
                 /* Monitor name comes second, so when that is detected fill the object and push it to list */
@@ -203,6 +206,11 @@ function setBrightness(display, newValue) {
     GLib.spawn_command_line_async("ddcutil setvcp 10 " + newBrightness + " --nodetect --bus " + display.bus)
 }
 
+function setVolume(display, newValue) {
+    let newVolume = parseInt(newValue);
+    global.log(display.name, newValue);
+    GLib.spawn_command_line_async("ddcutil setvcp 62 " + newVolume + " --nodetect --bus " + display.bus);
+}
 
 function SliderPanelMenu(set) {
     if (set == "enable") {
@@ -215,8 +223,13 @@ function SliderPanelMenu(set) {
                 let onSliderChange = function (newValue) {
                     setBrightness(display, newValue)
                 };
-                let displaySlider = new SliderItem(display.name, display.current, onSliderChange)
+                let onSliderChangeVolume = function (newValue) {
+                    setVolume(display, newValue)
+                };
+                let displaySlider = new SliderItem(display.name, display.current, onSliderChange);
                 panelmenu.addMenuItem(displaySlider);
+                let volumeSlider = new SliderItem(display.name, display.current_volume, onSliderChangeVolume);
+                panelmenu.addMenuItem(volumeSlider);
             });
         } else {
             let noDisplayFound = new PopupMenu.PopupMenuItem("ddcutil didn't find any display\nwith DDC/CI support.", {
